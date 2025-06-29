@@ -9,11 +9,14 @@ const router = express.Router();
 interface AuthenticatedRequest extends Request {
   userId?: string;
   user?: any;
+  localUser?: any;
 }
 
 // @route   POST /api/clerk-auth/sync-user
 // @desc    Sync user data from Clerk to local database
 // @access  Private (requires Clerk token)
+// @note    This endpoint is largely redundant since users are now automatically synced
+//          when they authenticate. It's kept for backwards compatibility and manual syncing if needed.
 router.post(
   "/sync-user",
   clerkAuth,
@@ -25,8 +28,9 @@ router.post(
       const clerkUserId = req.userId!;
       const clerkUserData = req.user!;
 
-      // Check if user already exists in local database
-      let localUser = await User.findOne({ clerkId: clerkUserId });
+      // Check if user already exists in local database (likely already synced by middleware)
+      let localUser =
+        req.localUser || (await User.findOne({ clerkId: clerkUserId }));
 
       if (!localUser) {
         // Create new user in local database
@@ -95,19 +99,20 @@ router.get(
     try {
       const clerkUserId = req.userId!;
 
-      // Get user from local database
-      const localUser = await User.findOne({ clerkId: clerkUserId });
+      // Get user from local database (automatically synced by middleware)
+      const localUser =
+        req.localUser || (await User.findOne({ clerkId: clerkUserId }));
 
       if (!localUser) {
         res.status(404).json({
           success: false,
           message:
-            "User not found in local database. Please sync your profile first.",
+            "User not found in local database. Please try again as the sync may have failed.",
         });
         return;
       }
 
-      // Get fresh data from Clerk
+      // Get fresh data from Clerk for additional info
       const clerkUser = await clerkClient.users.getUser(clerkUserId);
 
       res.json({
