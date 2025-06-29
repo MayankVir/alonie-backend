@@ -1,9 +1,11 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import User from '../models/User';
+import { JWTPayload } from '../types';
 
-const auth = async (req, res, next) => {
+const auth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    let token;
+    let token: string | undefined;
 
     // Check for token in header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -12,43 +14,47 @@ const auth = async (req, res, next) => {
 
     // Check if token exists
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
       });
+      return;
     }
 
     try {
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
       
       // Get user from token
       const user = await User.findById(decoded.id).select('-password');
       
       if (!user) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           message: 'Token is not valid. User not found.'
         });
+        return;
       }
 
       if (!user.isActive) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           message: 'User account is deactivated.'
         });
+        return;
       }
 
       req.user = user;
       next();
     } catch (error) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Token is not valid.'
       });
+      return;
     }
   } catch (error) {
-    console.error(error.message);
+    console.error((error as Error).message);
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -56,4 +62,4 @@ const auth = async (req, res, next) => {
   }
 };
 
-module.exports = auth;
+export default auth; 
