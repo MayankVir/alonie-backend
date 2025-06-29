@@ -31,43 +31,7 @@ app.use(limiter);
 
 // CORS configuration
 const corsOptions = {
-  origin: function (
-    origin: string | undefined,
-    callback: (err: Error | null, allow?: boolean) => void,
-  ) {
-    // Log the origin for debugging
-    console.log(`CORS check for origin: ${origin || "undefined"}`);
-
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-
-    // In development, allow common frontend ports
-    if (process.env.NODE_ENV === "development") {
-      const allowedOrigins = [
-        "http://localhost:3000",
-        "http://localhost:8080", // Vue CLI default
-        process.env.FRONTEND_URL,
-      ].filter((url): url is string => Boolean(url)); // Type-safe filter
-
-      console.log("Allowed origins in development:", allowedOrigins);
-
-      if (
-        allowedOrigins.some((allowedOrigin) => origin.startsWith(allowedOrigin))
-      ) {
-        console.log(`✅ CORS allowed for origin: ${origin}`);
-        return callback(null, true);
-      }
-    } else {
-      // In production, only allow the configured frontend URL
-      if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
-        console.log(`CORS allowed for production origin: ${origin}`);
-        return callback(null, true);
-      }
-    }
-
-    console.log(`CORS blocked for origin: ${origin}`);
-    callback(new Error("Not allowed by CORS"));
-  },
+  origin: "*",
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
