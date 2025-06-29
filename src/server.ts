@@ -9,6 +9,8 @@ import dotenv from "dotenv";
 import userRoutes from "./routes/users";
 import authRoutes from "./routes/auth";
 import clerkAuthRoutes from "./routes/clerkAuth";
+import companionRoutes from "./routes/companions";
+import chatRoutes from "./routes/chat";
 
 // Load environment variables
 dotenv.config();
@@ -24,15 +26,54 @@ const limiter = rateLimit({
   max: 100, // limit each IP to 100 requests per windowMs
   message: "Too many requests from this IP, please try again later.",
 });
+
 app.use(limiter);
 
 // CORS configuration
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true,
-  }),
-);
+const corsOptions = {
+  origin: function (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void,
+  ) {
+    // Log the origin for debugging
+    console.log(`CORS check for origin: ${origin || "undefined"}`);
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    // In development, allow common frontend ports
+    if (process.env.NODE_ENV === "development") {
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "http://localhost:8080", // Vue CLI default
+        process.env.FRONTEND_URL,
+      ].filter((url): url is string => Boolean(url)); // Type-safe filter
+
+      console.log("Allowed origins in development:", allowedOrigins);
+
+      if (
+        allowedOrigins.some((allowedOrigin) => origin.startsWith(allowedOrigin))
+      ) {
+        console.log(`✅ CORS allowed for origin: ${origin}`);
+        return callback(null, true);
+      }
+    } else {
+      // In production, only allow the configured frontend URL
+      if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
+        console.log(`CORS allowed for production origin: ${origin}`);
+        return callback(null, true);
+      }
+    }
+
+    console.log(`CORS blocked for origin: ${origin}`);
+    callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+};
+
+app.use(cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
@@ -58,6 +99,8 @@ connectDB();
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/clerk-auth", clerkAuthRoutes);
+app.use("/api/companions", companionRoutes);
+app.use("/api/chat", chatRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req: Request, res: Response) => {
@@ -78,6 +121,8 @@ app.get("/", (req: Request, res: Response) => {
       users: "/api/users",
       auth: "/api/auth",
       clerkAuth: "/api/clerk-auth",
+      companions: "/api/companions",
+      chat: "/api/chat",
     },
   });
 });

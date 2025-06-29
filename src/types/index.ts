@@ -24,11 +24,52 @@ export interface IUser extends Document {
   matchPassword?(enteredPassword: string): Promise<boolean>;
 }
 
+// Companion interface for MongoDB document
+export interface ICompanion extends Document {
+  _id: string;
+  name: string;
+  description: string;
+  personality: string;
+  avatar: string;
+  category: string;
+  instructions: string;
+  seed: string;
+  userId: string; // Reference to the user who created the companion
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Conversation interface for MongoDB document
+export interface IConversation extends Document {
+  _id: string;
+  userId: string;
+  companionId: string;
+  title?: string;
+  lastMessageAt: Date;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Message interface for MongoDB document
+export interface IMessage extends Document {
+  _id: string;
+  conversationId: string;
+  userId: string;
+  companionId: string;
+  content: string;
+  isUser: boolean;
+  timestamp: Date;
+  createdAt: Date;
+}
+
 // Extend Express Request interface to include user
 declare global {
   namespace Express {
     interface Request {
       user?: IUser;
+      userId?: string; // For Clerk authentication
     }
   }
 }
@@ -63,6 +104,28 @@ export interface UpdateProfileRequest {
   name?: string;
   email?: string;
   avatar?: string;
+}
+
+// Companion create request body
+export interface CreateCompanionRequest {
+  name: string;
+  description: string;
+  personality: string;
+  avatar?: string;
+  category: string;
+  instructions?: string;
+  seed?: string;
+}
+
+// Companion update request body
+export interface UpdateCompanionRequest {
+  name?: string;
+  description?: string;
+  personality?: string;
+  avatar?: string;
+  category?: string;
+  instructions?: string;
+  seed?: string;
 }
 
 // JWT payload
