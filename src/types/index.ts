@@ -35,6 +35,7 @@ export interface ICompanion extends Document {
   instructions: string;
   seed: string;
   userId: string; // Reference to the user who created the companion
+  type: "free" | "custom"; // Type of companion: free (default) or custom (paid feature)
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -115,6 +116,7 @@ export interface CreateCompanionRequest {
   category: string;
   instructions?: string;
   seed?: string;
+  type?: "free" | "custom";
 }
 
 // Companion update request body
@@ -126,6 +128,7 @@ export interface UpdateCompanionRequest {
   category?: string;
   instructions?: string;
   seed?: string;
+  type?: "free" | "custom";
 }
 
 // JWT payload

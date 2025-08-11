@@ -47,6 +47,12 @@ const companionSchema = new Schema<ICompanion>({
     type: String,
     required: [true, "User ID is required"],
   },
+  type: {
+    type: String,
+    enum: ["free", "custom"],
+    default: "custom",
+    required: [true, "Companion type is required"],
+  },
   isActive: {
     type: Boolean,
     default: true,
@@ -70,5 +76,6 @@ companionSchema.pre<ICompanion>("save", function (next) {
 // Index for better query performance
 companionSchema.index({ userId: 1, isActive: 1 });
 companionSchema.index({ name: 1, userId: 1 });
+companionSchema.index({ type: 1 });
 
 export default mongoose.model<ICompanion>("Companion", companionSchema);

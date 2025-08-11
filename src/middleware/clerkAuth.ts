@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { clerkClient } from "@clerk/clerk-sdk-node";
 import User from "../models/User";
 import { IUser } from "../types";
+import { createDefaultCompanions } from "../services/defaultCompanionService";
+import { sendError } from "../utils/corsHelper";
 
 // Extend the global Express Request interface to include localUser
 declare global {
@@ -29,10 +31,7 @@ const clerkAuth = async (
     const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
-      res.status(401).json({
-        success: false,
-        message: "No token provided",
-      });
+      sendError(res, 401, "No token provided");
       return;
     }
 
@@ -40,10 +39,7 @@ const clerkAuth = async (
     const payload = await clerkClient.verifyToken(token);
 
     if (!payload || !payload.sub) {
-      res.status(401).json({
-        success: false,
-        message: "Invalid token",
-      });
+      sendError(res, 401, "Invalid token");
       return;
     }
 
@@ -70,6 +66,7 @@ const clerkAuth = async (
     try {
       // Check if user already exists in local database
       let localUser = await User.findOne({ clerkId: clerkUserId });
+      let isNewUser = false;
 
       if (!localUser) {
         // Create new user in local database
@@ -87,9 +84,26 @@ const clerkAuth = async (
           lastLogin: new Date(),
         });
         await localUser.save();
+        isNewUser = true;
         console.log(
           `User ${clerkUserData.email} successfully synced to local DB`,
         );
+      }
+
+      // Create default companions for new users
+      if (isNewUser) {
+        try {
+          await createDefaultCompanions(clerkUserId);
+          console.log(
+            `Default companions created for new user: ${clerkUserData.email}`,
+          );
+        } catch (companionError) {
+          console.error(
+            `Failed to create default companions for user ${clerkUserData.email}:`,
+            companionError,
+          );
+          // Don't fail the authentication if companion creation fails
+        }
       }
 
       // Add local user info to request for use in routes
@@ -106,10 +120,7 @@ const clerkAuth = async (
     next();
   } catch (error) {
     console.error("Clerk auth error:", error);
-    res.status(401).json({
-      success: false,
-      message: "Token verification failed",
-    });
+    sendError(res, 401, "Token verification failed");
   }
 };
 

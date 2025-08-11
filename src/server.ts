@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+import { sendError } from "./utils/corsHelper";
 
 // Import routes
 import userRoutes from "./routes/users";
@@ -38,6 +39,21 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight requests globally
+app.options("*", (req: Request, res: Response) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET,POST,PUT,DELETE,PATCH,OPTIONS",
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type,Authorization,X-Requested-With",
+  );
+  res.sendStatus(200);
+});
 
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
@@ -94,21 +110,20 @@ app.get("/", (req: Request, res: Response) => {
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);
-  res.status(500).json({
-    error: "Something went wrong!",
-    message:
-      process.env.NODE_ENV === "development"
-        ? err.message
-        : "Internal Server Error",
-  });
+  const message =
+    process.env.NODE_ENV === "development"
+      ? err.message
+      : "Internal Server Error";
+  sendError(res, 500, message);
 });
 
 // 404 handler
 app.use("*", (req: Request, res: Response) => {
-  res.status(404).json({
-    error: "Route not found",
-    message: `The route ${req.originalUrl} does not exist on this server`,
-  });
+  sendError(
+    res,
+    404,
+    `The route ${req.originalUrl} does not exist on this server`,
+  );
 });
 
 const PORT: number = parseInt(process.env.PORT || "3001", 10);

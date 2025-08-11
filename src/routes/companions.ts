@@ -7,6 +7,10 @@ import {
   UpdateCompanionRequest,
   ApiResponse,
 } from "../types";
+import {
+  createDefaultCompanions,
+  getDefaultCompanionTemplates,
+} from "../services/defaultCompanionService";
 
 const router = express.Router();
 
@@ -28,6 +32,66 @@ router.get(
         count: companions.length,
         data: companions,
       });
+    } catch (error) {
+      console.error((error as Error).message);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
+  },
+);
+
+// @route   GET /api/companions/default-companions
+// @desc    Get default companion templates and ensure user has them
+// @access  Private
+// NOTE: Using specific route name to avoid conflicts with /:id pattern
+router.get(
+  "/default-companions",
+  clerkAuth,
+  async (req: Request, res: Response<ApiResponse>): Promise<void> => {
+    try {
+      // Check if user has default companions, if not create them
+      const userCompanions = await Companion.find({
+        userId: req.userId!,
+        type: "free",
+        isActive: true,
+      });
+
+      // If user doesn't have all default companions, create missing ones
+      if (userCompanions.length < 3) {
+        try {
+          await createDefaultCompanions(req.userId!);
+          console.log(`Default companions ensured for user: ${req.userId}`);
+        } catch (error) {
+          console.error(
+            `Failed to ensure default companions for user ${req.userId}:`,
+            error,
+          );
+        }
+
+        // Fetch the updated companions after creation
+        const updatedCompanions = await Companion.find({
+          userId: req.userId!,
+          type: "free",
+          isActive: true,
+        }).sort({ createdAt: -1 });
+
+        res.json({
+          success: true,
+          message: "Default companions ensured for user",
+          count: updatedCompanions.length,
+          data: updatedCompanions,
+        });
+      } else {
+        // User already has default companions
+        res.json({
+          success: true,
+          message: "User already has default companions",
+          count: userCompanions.length,
+          data: userCompanions,
+        });
+      }
     } catch (error) {
       console.error((error as Error).message);
       res.status(500).json({
@@ -118,6 +182,10 @@ router.post(
       .trim()
       .isLength({ max: 200 })
       .withMessage("Seed cannot be more than 200 characters"),
+    body("type")
+      .optional()
+      .isIn(["free", "custom"])
+      .withMessage("Type must be either 'free' or 'custom'"),
   ],
   async (
     req: Request<{}, ApiResponse, CreateCompanionRequest>,
@@ -144,6 +212,7 @@ router.post(
         category,
         instructions,
         seed,
+        type,
       } = req.body;
 
       // Check if companion with same name already exists for this user
@@ -169,6 +238,7 @@ router.post(
         category,
         instructions: instructions || "",
         seed: seed || "",
+        type: type || "custom", // Default to custom for user-created companions
         userId: req.userId!,
       });
 
